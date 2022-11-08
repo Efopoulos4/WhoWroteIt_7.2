@@ -1,144 +1,54 @@
 package com.example.whowroteit_72;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.loader.app.LoaderManager;
-import androidx.loader.content.Loader;
-
-import android.content.Context;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.view.View;
-import android.view.inputmethod.InputMethodManager;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
+import com.koushikdutta.ion.Ion;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import java.io.InputStream;
-
-public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<String> {
-    private EditText mBookInput;
-    private TextView mTitleText;
-    private TextView mAuthorText;
+public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
+    private EditText mUrlInput;
+    private TextView mTextView;
+    private Spinner mSpinner;
+    private String spinnerString;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        mUrlInput = findViewById(R.id.URL_input);
+        mTextView = findViewById(R.id.textView_page_source);
 
-        mBookInput = findViewById(R.id.bookInput);
-        mTitleText = findViewById(R.id.titleText);
-        mAuthorText = findViewById(R.id.authorText);
+        mSpinner = findViewById(R.id.spinner);
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
+                R.array.spinner_array, android.R.layout.simple_spinner_item);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mSpinner.setAdapter(adapter);
+        mSpinner.setOnItemSelectedListener(this);
 
-        if (getSupportLoaderManager().getLoader(0) != null) {
-            getSupportLoaderManager().initLoader(0, null, this);
-        }
     }
 
     public void searchBooks(View view) {
-        String queryString = mBookInput.getText().toString();
-        InputMethodManager inputManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        if (inputManager != null) {
-            inputManager.hideSoftInputFromWindow(view.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
-        }
-        ConnectivityManager connMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo = null;
-        if (connMgr != null) {
-            networkInfo = connMgr.getActiveNetworkInfo();
-        }
-
-        if (networkInfo != null && networkInfo.isConnected() && queryString.length() != 0) {
-//            new FetchBook(mTitleText, mAuthorText).execute(queryString);
-            Bundle queryBundle = new Bundle();
-            queryBundle.putString("queryString", queryString);
-            getSupportLoaderManager().restartLoader(0, queryBundle, this);
-            mAuthorText.setText("");
-            mTitleText.setText(R.string.loading);
-        } else {
-            if (queryString.length() == 0) {
-                mAuthorText.setText("");
-                mTitleText.setText(R.string.no_search_term);
-            } else {
-                mAuthorText.setText("");
-                mTitleText.setText(R.string.no_network);
-            }
-        }
+        String queryUrl = mUrlInput.getText().toString();
+        queryUrl = spinnerString.toLowerCase()+"://"+queryUrl;
+        Ion.with(getApplicationContext())
+                .load(queryUrl)
+                .asString()
+                .setCallback((e, result) -> mTextView.setText(result));
     }
 
 
-    @NonNull
     @Override
-    public Loader<String> onCreateLoader(int id, @Nullable Bundle args) {
-        String queryString = "";
-
-        if (args != null) {
-            queryString = args.getString("queryString");
-        }
-
-        return new BookLoader(this, queryString);
+    public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+        spinnerString = adapterView.getItemAtPosition(i).toString();
     }
 
     @Override
-    public void onLoadFinished(@NonNull Loader<String> loader, String data) {
-
-        try {
-            // Convert the response into a JSON object.
-            JSONObject jsonObject = new JSONObject(data);
-            // Get the JSONArray of book items.
-            JSONArray itemsArray = jsonObject.getJSONArray("items");
-
-            // Initialize iterator and results fields.
-            int i = 0;
-            String title = null;
-            String authors = null;
-
-            // Look for results in the items array, exiting
-            // when both the title and author
-            // are found or when all items have been checked.
-            while (i < itemsArray.length() &&
-                    (authors == null && title == null)) {
-                // Get the current item information.
-                JSONObject book = itemsArray.getJSONObject(i);
-                JSONObject volumeInfo = book.getJSONObject("volumeInfo");
-
-                // Try to get the author and title from the current item,
-                // catch if either field is empty and move on.
-                try {
-                    title = volumeInfo.getString("title");
-                    authors = volumeInfo.getString("authors");
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                // Move to the next item.
-                i++;
-            }
-
-            if (title != null && authors != null) {
-                mTitleText.setText(title);
-                mAuthorText.setText(authors);
-                //mBookInput.setText("");
-            } else {
-                // If none are found, update the UI to show failed results.
-                mTitleText.setText(R.string.no_results);
-                mAuthorText.setText("");
-            }
-
-
-        } catch (Exception e) {
-            // If onPostExecute does not receive a proper JSON string,
-            // update the UI to show failed results.
-            mTitleText.setText(R.string.no_results);
-            mAuthorText.setText("");
-            e.printStackTrace();
-        }
-    }
-
-    @Override
-    public void onLoaderReset(@NonNull Loader<String> loader) {
+    public void onNothingSelected(AdapterView<?> adapterView) {
 
     }
 }
