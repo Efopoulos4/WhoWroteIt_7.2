@@ -2,13 +2,25 @@ package com.example.whowroteit_72;
 
 import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
+import android.os.StrictMode;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
-import com.koushikdutta.ion.Ion;
+
+import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.HttpEntity;
+import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.HttpResponse;
+import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.client.ClientProtocolException;
+import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.client.HttpClient;
+import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.client.methods.HttpGet;
+import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.impl.client.DefaultHttpClient;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 
 public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
     private EditText mUrlInput;
@@ -33,12 +45,31 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     }
 
     public void searchBooks(View view) {
+        String resString = "";
+        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+        StrictMode.setThreadPolicy(policy);
         String queryUrl = mUrlInput.getText().toString();
         queryUrl = spinnerString.toLowerCase()+"://"+queryUrl;
-        Ion.with(getApplicationContext())
-                .load(queryUrl)
-                .asString()
-                .setCallback((e, result) -> mTextView.setText(result));
+        HttpClient httpClient = new DefaultHttpClient();
+        HttpGet httpget = new HttpGet(queryUrl);
+        try{
+            HttpResponse response;
+            response = httpClient.execute(httpget);
+            HttpEntity entity = response.getEntity();
+            InputStream is = entity.getContent();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is),8);
+            StringBuilder sb = new StringBuilder();
+            String line = null;
+            while((line = reader.readLine()) != null){
+                sb.append(line + "\n");
+            }
+            resString = sb.toString();
+            is.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        mTextView.setText(resString);
+
     }
 
 
